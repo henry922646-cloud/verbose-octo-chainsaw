@@ -5,12 +5,22 @@ import { addStuff, findRecipes } from "../../utils";
 
 type Item = { name: string; quantity: string };
 
-// Ensure the state type is string | null because your action returns a JSON string
-// and you JSON.parse it on the client.
 export default function Page() {
-  // explicitly type the state so TS knows what the action signature should be
-  const [state, formAction] = useActionState<string | null>(findRecipes, null);
+  // Adapter so the action has the correct FormAction signature:
+  // FormAction expects (formData: FormData, prevState: StateType | null)
+  // while your existing findRecipes currently expects (prevState, formData).
+  const action = async (formData: FormData, prevState: string | null) => {
+    // call the existing util which has (prevState, formData) signature
+    // adjust this call if your findRecipes has a different return type
+    const result = await findRecipes(prevState, formData);
+    return result;
+  };
 
+  // Explicitly type the state so TS knows the action/state shape
+  // Use string | null if action returns a JSON string that you parse client-side.
+  const [state, formAction] = useActionState<string | null>(action, null);
+
+  // Parse state safely into Items
   const parsedState: Item[] = state ? (JSON.parse(state) as Item[]) : [];
 
   return (
@@ -51,7 +61,6 @@ export default function Page() {
         <button
           type="button"
           onClick={() => {
-            // this runs on the client — if addStuff is server-only, use a server action instead
             addStuff(parsedState);
           }}
           className="p-2 border border-gray-300 rounded md hover:shadow-md"
